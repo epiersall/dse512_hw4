@@ -1,5 +1,9 @@
+from abc import ABC
+
 import torch
 import torchvision.datasets as datasets
+import torch.nn as nn
+
 import numpy as np
 
 # pytorch training loop
@@ -16,6 +20,20 @@ def load_data():
     mnist_testset = datasets.MNIST(root='./data', train=False, download=True, transform=None)
 
     return mnist_trainset, mnist_testset
+
+
+def define_model(n_classes):
+    model = torch.nn.Sequential(
+        nn.Conv2d(6, 3, 20),
+        nn.ReLU(),
+        nn.Conv2d(3, 1, 10),
+        nn.ReLU(),
+        nn.Flatten(),
+        nn.Linear(100, 50),
+        nn.Linear(50, n_classes)
+    )
+
+
 
 
 # Press the green button in the gutter to run the script.
