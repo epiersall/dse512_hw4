@@ -2,6 +2,7 @@ from abc import ABC
 
 import torch
 import torchvision.datasets as datasets
+import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -18,8 +19,9 @@ import numpy as np
 
 
 def load_data():
-    mnist_trainset = datasets.MNIST(root='./data', train=True, download=True, transform=None)
-    mnist_testset = datasets.MNIST(root='./data', train=False, download=True, transform=None)
+    trans = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (1.0,))])
+    mnist_trainset = datasets.MNIST(root='./data', train=True, download=True, transform=trans)
+    mnist_testset = datasets.MNIST(root='./data', train=False, download=True, transform=trans)
 
     batch_size = 100
 
@@ -37,9 +39,9 @@ def load_data():
 
 def define_model(n_classes):
     model = torch.nn.Sequential(
-        nn.Conv2d(6, 3, 20),
+        nn.Conv2d(1, 3, 20),
         nn.ReLU(),
-        nn.Conv2d(3, 1, 10),
+        nn.Conv2d(1, 1, 10),
         nn.ReLU(),
         nn.Flatten(),
         nn.Linear(100, 50),
