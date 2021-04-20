@@ -21,7 +21,18 @@ def load_data():
     mnist_trainset = datasets.MNIST(root='./data', train=True, download=True, transform=None)
     mnist_testset = datasets.MNIST(root='./data', train=False, download=True, transform=None)
 
-    return mnist_trainset, mnist_testset
+    batch_size = 100
+
+    train_loader = torch.utils.data.DataLoader(
+        dataset=mnist_trainset,
+        batch_size=batch_size,
+        shuffle=True)
+    test_loader = torch.utils.data.DataLoader(
+        dataset=mnist_testset,
+        batch_size=batch_size,
+        shuffle=False)
+
+    return train_loader, test_loader
 
 
 def define_model(n_classes):
@@ -38,14 +49,14 @@ def define_model(n_classes):
 
 
 class ConvNet(nn.Module):
-    def __init__(self, n_classes):
+    def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(6, 3, 20)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(3, 1, 10)
         self.fc1 = nn.Linear(10 * 3, 100)
         self.fc2 = nn.Linear(100, 50)
-        self.fc3 = nn.Linear(50, n_classes)
+        self.fc3 = nn.Linear(50, 10)
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
@@ -57,8 +68,8 @@ class ConvNet(nn.Module):
         return x
 
 
-def run_classifier():
-    train, test = load_data()
+def run_model():
+    train_loader, test_loader = load_data()
 
     net = ConvNet()
 
@@ -68,7 +79,7 @@ def run_classifier():
     for epoch in range(2):  # loop over the dataset multiple times
 
         running_loss = 0.0
-        for i, data in enumerate(trainloader, 0):
+        for i, data in enumerate(train_loader, 0):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
 
@@ -93,6 +104,8 @@ def run_classifier():
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    run_classifier()
+    # train_loader, test_loader = load_data()
+    # print(train_loader)
+    run_model()
 
 
