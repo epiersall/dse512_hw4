@@ -14,6 +14,7 @@ import torch.distributed as dist
 
 import numpy as np
 import pandas as pd
+import mpi4py.MPI as MPI
 
 
 # pytorch training loop
@@ -171,10 +172,7 @@ def run_model():
 
 
 
-def run_model_parallel(epoch_num, process_num, batch_size, learning_rate=0.05):
-    rank = range(0, process_num)
-    world_size = process_num
-    dist.init_process_group('gloo', init_method='env://', world_size=world_size, rank=rank)
+def run_model_parallel(epoch_num, batch_size, learning_rate=0.05):
 
     train_data, test_data = load_dataset()
 
@@ -185,8 +183,8 @@ def run_model_parallel(epoch_num, process_num, batch_size, learning_rate=0.05):
     model = ConvNet()
     model = DistributedDataParallel(model)
 
-    rank = range(0, process_num)
-    world_size = process_num
+    rank = dist.get_rank()
+    world_size = dist.get_world_size()
 
     learning_rate *= world_size
     optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
@@ -198,5 +196,18 @@ def run_model_parallel(epoch_num, process_num, batch_size, learning_rate=0.05):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    run_model_parallel(2, 2, 30)
+    import argparse
+    parser = argparse.ArgumentParser()
+    args = parser.parse_args()
+
+    rank = MPI.COMM_WORLD.Get_rank()
+    world_size = MPI.COMM_WORLD.Get_size()
+
+    if rank == 0:
+        print("World size: ", world_size)
+
+    dist.init_process_group('gloo', init_method='env://', world_size=world_size, rank=rank)
+
+
+    run_model_parallel(2, 30)
 
