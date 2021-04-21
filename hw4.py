@@ -10,7 +10,7 @@ import torch.optim as optim
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
-
+import torch.distributed as dist
 
 import numpy as np
 import pandas as pd
@@ -172,6 +172,10 @@ def run_model():
 
 
 def run_model_parallel(epoch_num, process_num, batch_size, learning_rate=0.05):
+    rank = range(0, process_num)
+    world_size = process_num
+    dist.init_process_group('gloo', init_method='env://', world_size=world_size, rank=rank)
+
     train_data, test_data = load_dataset()
 
     sampler = DistributedSampler(train_data)
