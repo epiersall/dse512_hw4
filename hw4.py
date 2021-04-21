@@ -9,6 +9,7 @@ import torch.optim as optim
 
 import numpy as np
 
+
 # pytorch training loop
 # data loading
 # normal CNN model - simple
@@ -70,7 +71,7 @@ class ConvNet(nn.Module):
         return x
 
 
-def run_model():
+def run_model(epoch_num):
     train_loader, test_loader = load_data()
 
     net = ConvNet()
@@ -78,7 +79,8 @@ def run_model():
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
-    for epoch in range(2):  # loop over the dataset multiple times
+    loses_epcoh = np.zeros(epoch_num)
+    for epoch in range(epoch_num):  # loop over the dataset multiple times
 
         running_loss = 0.0
         for i, data in enumerate(train_loader, 0):
@@ -94,12 +96,52 @@ def run_model():
             loss.backward()
             optimizer.step()
 
-            # print statistics
-            running_loss += loss.item()
-            if i % 20 == 19:  # print every 2000 mini-batches
-                print('[%d, %5d] loss: %.3f' %
-                      (epoch + 1, i + 1, running_loss / 2000))
-                running_loss = 0.0
+        # print epoch statistics
+        print("epoch: ", epoch, "loss: ", loss.item())
+        loses_epcoh[epoch] = loss.item()
+
+        test_accuracy = []
+        for i, (data, labels) in enumerate(test_loader):
+            # pass data through network
+            outputs = net(data)
+            _, predicted = torch.max(outputs.data, 1)
+            loss = criterion(outputs, labels)
+            test_accuracy.append((predicted == labels).sum().item() / predicted.size(0))
+            accuracy = np.array(test_accuracy)
+
+        print('accuracy: ', np.average(accuracy))
+
+    print('Finished Training')
+
+
+def run_model_parallel(epoch_num, process_num):
+    train_loader, test_loader = load_data()
+
+    net = ConvNet()
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+
+    loses_epcoh = np.zeros(epoch_num)
+    for epoch in range(epoch_num):  # loop over the dataset multiple times
+
+        running_loss = 0.0
+        for i, data in enumerate(train_loader, 0):
+            # get the inputs; data is a list of [inputs, labels]
+            inputs, labels = data
+
+            # zero the parameter gradients
+            optimizer.zero_grad()
+
+            # forward + backward + optimize
+            outputs = net(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+        # print epoch statistics
+        print("epoch: ", epoch, "loss: ", loss.item())
+        loses_epcoh[epoch] = loss.item()
 
     print('Finished Training')
 
@@ -108,6 +150,4 @@ def run_model():
 if __name__ == '__main__':
     # train_loader, test_loader = load_data()
     # print(train_loader)
-    run_model()
-
-
+    run_model(5)
