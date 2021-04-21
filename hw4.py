@@ -7,7 +7,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+from torch.nn.parallel import DistributedDataParallel
+from torch.utils.data.distributed import DistributedSampler
+from torch.utils.data import DataLoader
+
+
 import numpy as np
+import pandas as pd
 
 
 # pytorch training loop
@@ -17,6 +23,14 @@ import numpy as np
 # wrap in data parallel
 # try with a few different ranks, keep track of time and epoch accuracy for each over 30 epochs
 # save accuracy as it goes as numpy arrays
+
+
+def load_dataset():
+    train_dataset = datasets.MNIST(root='./data', train=True, transform=transforms.Compose([transforms.ToTensor(),]),
+                                   download=True)
+    test_dataset = datasets.MNIST(root='./data', train=False, download=True)
+
+    return train_dataset, test_dataset
 
 
 def load_data():
@@ -71,15 +85,11 @@ class ConvNet(nn.Module):
         return x
 
 
-def run_model(epoch_num):
-    train_loader, test_loader = load_data()
+def train(net, epoch_num, train_loader, test_loader, criterion, optimizer):
+    # criterion = nn.CrossEntropyLoss()
+    # optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
-    net = ConvNet()
-
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
-
-    loses_epcoh = np.zeros(epoch_num)
+    loses_epoch = np.zeros(epoch_num)
     for epoch in range(epoch_num):  # loop over the dataset multiple times
 
         running_loss = 0.0
@@ -98,7 +108,7 @@ def run_model(epoch_num):
 
         # print epoch statistics
         print("epoch: ", epoch, "loss: ", loss.item())
-        loses_epcoh[epoch] = loss.item()
+        loses_epoch[epoch] = loss.item()
 
         test_accuracy = []
         for i, (data, labels) in enumerate(test_loader):
@@ -109,12 +119,13 @@ def run_model(epoch_num):
             test_accuracy.append((predicted == labels).sum().item() / predicted.size(0))
             accuracy = np.array(test_accuracy)
 
+        accuracy_av = pd.DataFrame(np.average(accuracy))
         print('accuracy: ', np.average(accuracy))
+        accuracy_av.to_csv('accuracy.csv')
 
-    print('Finished Training')
 
-
-def run_model_parallel(epoch_num, process_num):
+def run_model():
+    epoch_num = 2
     train_loader, test_loader = load_data()
 
     net = ConvNet()
@@ -122,7 +133,7 @@ def run_model_parallel(epoch_num, process_num):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
-    loses_epcoh = np.zeros(epoch_num)
+    loses_epoch = np.zeros(epoch_num)
     for epoch in range(epoch_num):  # loop over the dataset multiple times
 
         running_loss = 0.0
@@ -141,13 +152,47 @@ def run_model_parallel(epoch_num, process_num):
 
         # print epoch statistics
         print("epoch: ", epoch, "loss: ", loss.item())
-        loses_epcoh[epoch] = loss.item()
+        loses_epoch[epoch] = loss.item()
+
+        test_accuracy = []
+        for i, (data, labels) in enumerate(test_loader):
+            # pass data through network
+            outputs = net(data)
+            _, predicted = torch.max(outputs.data, 1)
+            loss = criterion(outputs, labels)
+            test_accuracy.append((predicted == labels).sum().item() / predicted.size(0))
+            accuracy = np.array(test_accuracy)
+
+        accuracy_av = np.average(accuracy)
+        print('accuracy: ', np.average(accuracy))
+        np.savetxt('accuracy.txt', accuracy_av, delimiter=',')
 
     print('Finished Training')
 
 
+
+def run_model_parallel(epoch_num, process_num, batch_size, learning_rate=0.05):
+    train_data, test_data = load_dataset()
+
+    sampler = DistributedSampler(train_data)
+    train_loader = DataLoader(train_data, batch_size=batch_size, sampler=sampler)
+    test_loader = DataLoader(test_data, batch_size=batch_size, sampler=sampler)
+
+    model = ConvNet()
+    model = DistributedDataParallel(model)
+
+    rank = range(0, process_num)
+    world_size = process_num
+
+    learning_rate *= world_size
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
+    criterion = nn.CrossEntropyLoss()
+
+    train(model, epoch_num, train_loader, test_loader, criterion, optimizer)
+
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    # train_loader, test_loader = load_data()
-    # print(train_loader)
-    run_model(5)
+    run_model_parallel(2, 2, 30)
+
