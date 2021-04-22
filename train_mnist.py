@@ -123,7 +123,7 @@ def train(num_epochs=5, batch_size=128, learning_rate=0.05):
             optimizer.step()
 
             _, predicted = torch.max(pred.data, 1)
-            correct = torch.sum(predicted == Y)
+            correct = torch.sum(predicted == Y).sum().item()
             accuracy = correct / len(train_dataloader)
             accuracy_list.append(accuracy)
 
@@ -139,10 +139,11 @@ def train(num_epochs=5, batch_size=128, learning_rate=0.05):
             perf_counter() - start)
         epoch_losses.append(ep_loss)
         elapsed_times.append(perf_counter()  - start)
-       
-        metrics = pd.DataFrame({'epoch_losses': epoch_losses, 'elapsed_time':
-            elapsed_times, 'accuracy': accuracy_list})
-        metrics.to_csv('metrics.csv')
+
+        accuracy_df = pd.DataFrame({'accuracy': accuracy_list})
+        time_df = pd.DataFrame({'elapsed_time': elapsed_times})
+        accuracy_df.to_csv('accuracy.csv')
+        time_df.to_csv('time.csv')
 
     return iter_losses, epoch_losses
 
