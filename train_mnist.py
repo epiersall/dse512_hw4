@@ -108,8 +108,6 @@ def train(num_epochs=5, batch_size=128, learning_rate=0.05):
             
             # evaluate model on the minibatch to get predictions
             pred = model(X)
-            print('pred: ', pred)
-            print('Y: ', Y)
 
             # compare predictions  to labels to get loss 
             loss = criterion(pred, Y)
@@ -124,14 +122,16 @@ def train(num_epochs=5, batch_size=128, learning_rate=0.05):
             # step the optimizer
             optimizer.step()
 
-           # correct += (pred == Y).float().sum()
-            correct = torch.sum(pred == Y)
+            _, predicted = torch.max(pred.data, 1)
+            correct = torch.sum(predicted == Y)
+            accuracy = correct / len(train_dataloader)
+            accuracy_list.append(accuracy)
 
             num_iters += 1
 
         ep_loss /= num_iters
-        accuracy = correct / len(train_dataloader)
-        accuracy_list.append(accuracy)
+        #accuracy = correct / len(train_dataloader)
+        #accuracy_list.append(accuracy)
 
         if rank == 0:
             #epbar.set_postfix(loss=ep_loss)
@@ -139,8 +139,7 @@ def train(num_epochs=5, batch_size=128, learning_rate=0.05):
             perf_counter() - start)
         epoch_losses.append(ep_loss)
         elapsed_times.append(perf_counter()  - start)
-        
-
+       
         metrics = pd.DataFrame({'epoch_losses': epoch_losses, 'elapsed_time':
             elapsed_times, 'accuracy': accuracy_list})
         metrics.to_csv('metrics.csv')
