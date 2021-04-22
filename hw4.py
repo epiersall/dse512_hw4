@@ -135,9 +135,11 @@ def run_model():
     optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
     loses_epoch = np.zeros(epoch_num)
+    accuracy = []
     for epoch in range(epoch_num):  # loop over the dataset multiple times
 
-        running_loss = 0.0
+
+        correct = 0
         for i, data in enumerate(train_loader, 0):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
@@ -150,23 +152,17 @@ def run_model():
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
+            correct += (outputs == labels).float().sum()
 
         # print epoch statistics
         print("epoch: ", epoch, "loss: ", loss.item())
         loses_epoch[epoch] = loss.item()
 
-        test_accuracy = []
-        for i, (data, labels) in enumerate(test_loader):
-            # pass data through network
-            outputs = net(data)
-            _, predicted = torch.max(outputs.data, 1)
-            loss = criterion(outputs, labels)
-            test_accuracy.append((predicted == labels).sum().item() / predicted.size(0))
-            accuracy = np.array(test_accuracy)
+        accuracy = correct / len(train_loader)
+        print('accuracy: ', accuracy)
 
-        accuracy_av = np.average(accuracy)
-        print('accuracy: ', np.average(accuracy))
-        np.savetxt('accuracy.txt', accuracy_av, delimiter=',')
+    accuracy_df = pd.DataFrame(np.average(accuracy))
+    accuracy_df.to_csv('accuracy.csv')
 
     print('Finished Training')
 
@@ -210,4 +206,5 @@ if __name__ == '__main__':
 
 
     run_model_parallel(2, 30)
+
 
